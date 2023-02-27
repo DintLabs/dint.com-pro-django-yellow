@@ -1,10 +1,13 @@
 from __future__ import print_function
+from api.utils.messages.postMessages import MESSAGE, POST_FETCHED
 from cryptography.fernet import Fernet
 from dint import settings
 from api.serializers.user import (UserLoginDetailSerializer, UserCreateUpdateSerializer,
-                                  UserCloseFriendsSerializer, UserStatusUpdateSerializer, UserIdentitySerializer)
+                                  UserCloseFriendsSerializer, UserStatusUpdateSerializer, UserIdentitySerializer, GetNotificationSerializer)
+
 from api.models.userFollowersModel import UserFollowers
-from api.models import User, UserSession, UserReferralWallet, UserPreferences, UserBookmarks, Posts, UserCloseFriends, UserIdentity
+from api.models import User, UserSession, UserReferralWallet, UserPreferences, UserBookmarks, Posts, UserCloseFriends, UserIdentity, UserSubscription, Messages
+from api.models.messageNotificationModel import Notifications
 from api.utils.messages.userMessages import *
 from .userBaseService import UserBaseService
 from django.core.files.base import ContentFile
@@ -151,7 +154,7 @@ class UserService(UserBaseService):
         except UserSession.DoesNotExist:
             return None
 
-    def sign_up(self, request, format=None):
+    def sign_up(self, request):
         request.data['referral_id'] = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
         if 'referred_by' in request.data:
             try:
@@ -166,17 +169,24 @@ class UserService(UserBaseService):
             user.is_online = True
             user.save()
             referral_address = '0x0000000000000000000000000000000000000000'
+            code_used = False
             if request.data.get('referred_by', None):
                 user_referred_by = User.objects.get(referral_id=request.data['referred_by'])
                 user_referral_wallet = UserReferralWallet(referred_by=user_referred_by)
                 user_referral_wallet.user_referral = user
                 user_referral_wallet.save()
                 referral_user = User.objects.get(email = user_referred_by)
+                
                 encrypted_address = referral_user.wallet_address
                 wallet_bytes = bytes(encrypted_address)
                 key = Fernet(settings.ENCRYPTION_KEY)
                 referral_decwallet = key.decrypt(wallet_bytes).decode()
                 referral_address = referral_decwallet
+                already_code_used = UserReferralWallet.objects.filter(referred_by=user_referred_by)
+               
+                length = len(already_code_used)
+                if length > 1:
+                    code_used = True
             payload = jwt_payload_handler(user)
             token = jwt.encode(payload, settings.SECRET_KEY)
             user_details = serializer.data
@@ -195,36 +205,52 @@ class UserService(UserBaseService):
             user.save()
             user_details['wallet_address'] = encrypted_wallet_address
             node_url = settings.NODE_URL
-            web3 = Web3(Web3.HTTPProvider(node_url))
-            web3.middleware_onion.inject(geth_poa_middleware, layer=0)
-            address = Web3.toChecksumAddress(settings.DINT_TOKEN_DISTRIBUTOR_ADDRESS)
-            private_key= settings.OWNER_PRIVATE_KEY
-            new_user = acct.address
-            abi = json.loads('[{"inputs":[{"internalType":"address","name":"_dintToken","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"_recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"_amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"_id","type":"uint256"}],"name":"rewardSent","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"_sender","type":"address"},{"indexed":false,"internalType":"address","name":"_recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"tipSent","type":"event"},{"inputs":[{"internalType":"address","name":"_referrer","type":"address"},{"internalType":"bool","name":"_blocked","type":"bool"}],"name":"blockUnblockReferrer","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"bool","name":"_isManaged","type":"bool"}],"name":"changeManagedState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_referrer","type":"address"},{"internalType":"bool","name":"_isReferrer","type":"bool"}],"name":"changeReferrerState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"dintToken","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"feeCollector","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"isRewardSent","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxDuration","outputs":[{"internalType":"uint64","name":"","type":"uint64"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"address","name":"_referrer","type":"address"}],"name":"register","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"uint256","name":"_postId","type":"uint256"}],"name":"reward","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_sender","type":"address"},{"internalType":"address","name":"_recipient","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"sendDint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_feeCollector","type":"address"}],"name":"setFeeCollector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint64","name":"_durationInSeconds","type":"uint64"}],"name":"setMaxDuration","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"}],"name":"unRegister","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"user","outputs":[{"internalType":"bool","name":"isRegistered","type":"bool"},{"internalType":"bool","name":"isManaged","type":"bool"},{"internalType":"bool","name":"isReferrer","type":"bool"},{"internalType":"bool","name":"blockedReferrer","type":"bool"},{"internalType":"uint64","name":"startedReferringAt","type":"uint64"},{"internalType":"address","name":"tipReceiverToReferrer","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_token","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"address","name":"_to","type":"address"}],"name":"withdrawToken","outputs":[],"stateMutability":"nonpayable","type":"function"}]') 
-
-            contract = web3.eth.contract(address = address , abi = abi)
-            user_address = contract.functions.owner().call()
-            nonce = web3.eth.getTransactionCount(user_address) 
-            register = contract.functions.register(new_user, referral_address).buildTransaction({  
-                'from': user_address,
-                'chainId': 80001,   
-                'gasPrice': web3.toWei('30', 'gwei'),  
-                'nonce': nonce,  
-            })  
-            signed_txn = web3.eth.account.signTransaction(register, private_key)  
-            result = web3.eth.sendRawTransaction(signed_txn.rawTransaction)   
-            tx_receipt = web3.eth.wait_for_transaction_receipt(result)  
             try:
-                user = User.objects.get(id = serializer.data.get('id'))
-                pk = user.id
-                print(pk)
-                sending_verification_email = self.send_verification_email_by_token(request, pk)
-                return ({"data": user_details, "code": status.HTTP_201_CREATED, "message": "User Created Successfully and email sent successfully for the verification"})
-            except:
-                return ({"data": user_details, "code": status.HTTP_201_CREATED, "message": "User Created Successfully"})
-        # if not valid
-        return ({"data": serializer.errors, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong."})
-    
+                web3 = Web3(Web3.HTTPProvider(node_url))
+                web3.middleware_onion.inject(geth_poa_middleware, layer=0)
+                address = Web3.toChecksumAddress(settings.DINT_TOKEN_DISTRIBUTOR_ADDRESS)
+                private_key= settings.OWNER_PRIVATE_KEY
+                new_user = acct.address
+                abi = json.loads('[{"inputs":[{"internalType":"address","name":"_dintToken","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"previousOwner","type":"address"},{"indexed":true,"internalType":"address","name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"_recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"_amount","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"_id","type":"uint256"}],"name":"rewardSent","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"internalType":"address","name":"_sender","type":"address"},{"indexed":false,"internalType":"address","name":"_recipient","type":"address"},{"indexed":false,"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"tipSent","type":"event"},{"inputs":[{"internalType":"address","name":"_referrer","type":"address"},{"internalType":"bool","name":"_blocked","type":"bool"}],"name":"blockUnblockReferrer","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"bool","name":"_isManaged","type":"bool"}],"name":"changeManagedState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_referrer","type":"address"},{"internalType":"bool","name":"_isReferrer","type":"bool"}],"name":"changeReferrerState","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"dintToken","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"feeCollector","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"isRewardSent","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"maxDuration","outputs":[{"internalType":"uint64","name":"","type":"uint64"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"address","name":"_referrer","type":"address"}],"name":"register","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"renounceOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"uint256","name":"_postId","type":"uint256"}],"name":"reward","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_sender","type":"address"},{"internalType":"address","name":"_recipient","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"}],"name":"sendDint","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_feeCollector","type":"address"}],"name":"setFeeCollector","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"uint64","name":"_durationInSeconds","type":"uint64"}],"name":"setMaxDuration","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"_user","type":"address"}],"name":"unRegister","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"user","outputs":[{"internalType":"bool","name":"isRegistered","type":"bool"},{"internalType":"bool","name":"isManaged","type":"bool"},{"internalType":"bool","name":"isReferrer","type":"bool"},{"internalType":"bool","name":"blockedReferrer","type":"bool"},{"internalType":"uint64","name":"startedReferringAt","type":"uint64"},{"internalType":"address","name":"tipReceiverToReferrer","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"_token","type":"address"},{"internalType":"uint256","name":"_amount","type":"uint256"},{"internalType":"address","name":"_to","type":"address"}],"name":"withdrawToken","outputs":[],"stateMutability":"nonpayable","type":"function"}]') 
+
+                contract = web3.eth.contract(address = address , abi = abi)
+                user_address = contract.functions.owner().call()
+
+                if (referral_address == '0x0000000000000000000000000000000000000000') and (code_used == False):
+                    pass
+                if (referral_address != '0x0000000000000000000000000000000000000000') and (code_used == True):
+                    pass
+                if (referral_address != '0x0000000000000000000000000000000000000000') and (code_used == False):
+                    nonce = web3.eth.getTransactionCount(user_address) 
+                    data = contract.functions.changeReferrerState(referral_address, True).buildTransaction({ 'from': user_address,
+                        'gasPrice': web3.toWei('30', 'gwei'),  
+                        'nonce': nonce,})
+                   
+                    signed_txn = web3.eth.account.signTransaction(data, private_key=private_key)
+                    tx_hash = web3.eth.sendRawTransaction(signed_txn.rawTransaction)
+                    tx_receipt = web3.eth.waitForTransactionReceipt(tx_hash)
+                nonce = web3.eth.getTransactionCount(user_address) 
+                register = contract.functions.register(new_user, referral_address).buildTransaction({  
+                    'from': user_address,
+                    'chainId': 80001,   
+                    'gasPrice': web3.toWei('30', 'gwei'),  
+                    'nonce': nonce,  
+                })  
+                signed_txn = web3.eth.account.signTransaction(register, private_key)  
+                result = web3.eth.sendRawTransaction(signed_txn.rawTransaction)   
+                tx_receipt = web3.eth.waitForTransactionReceipt(result)  
+                try:
+                    user = User.objects.get(id = serializer.data.get('id'))
+                    pk = user.id
+                    sending_verification_email = self.send_verification_email_by_token(request, pk)
+                    return ({"data": user_details, "code": status.HTTP_201_CREATED, "message": "User Created Successfully and email sent successfully for the verification"})
+                except:
+                    return ({"data": user_details, "code": status.HTTP_201_CREATED, "message": "User Created Successfully"})
+            except Exception as e:
+                print(e)
+                return ({"data": serializer.errors, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong. Please try again"})
+        return ({"data": serializer.errors, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong. Please try again"})
+
     def withdraw_dint_token(self, request, format=None):
         url = settings.WITHDRAW_DINT_TOKEN_URL
         payload = json.dumps({
@@ -247,7 +273,7 @@ class UserService(UserBaseService):
             else:
                 return ({"data": data, "code": status.HTTP_400_BAD_REQUEST, "message": "Transaction Failed"})
         except:
-            return ({"data": data, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong."})
+            return ({"data": [], "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong."})
 
     def send_dint_token(self, request, format=None):
         url = settings.SEND_DINT_TOKEN_URL
@@ -603,33 +629,24 @@ class UserService(UserBaseService):
 
     def get_profile_by_username(self, request, format=None):
         try:
-            user_obj = User.objects.get(
-                custom_username=request.data['custom_username'])
+            user_obj = User.objects.get(custom_username=request.data['custom_username'])
             if (user_obj.is_private == False):
-                context = {"profile_user_id": user_obj.id,
-                           "logged_in_user": request.user.id}
-                serializer = GetUserProfileSerializer(
-                    user_obj, context=context)
+                print("user is public")
+                context = {"profile_user_id": user_obj.id,"logged_in_user": request.user.id}
+                serializer = GetUserProfileSerializer(user_obj, context=context)
                 return ({"data": serializer.data, "code": status.HTTP_200_OK, "message": "User Profile fetched Successfully"})
             else:
-                try:
-                    is_followed = UserFollowers.objects.filter(
-                        user=user_obj, follower=request.user.id, request_status=True)
-                    if is_followed.exists():
-                        context = {"profile_user_id": user_obj.id,
-                                   "logged_in_user": request.user.id}
-                        serializer = GetUserProfileSerializer(
-                            user_obj, context=context)
-                        return ({"data": serializer.data, "code": status.HTTP_200_OK, "message": "User Profile fetched Successfully"})
-                except:
-                    pass
-
+                is_followed = UserFollowers.objects.filter(user=user_obj, follower=request.user.id, request_status=True)
+                if is_followed:
+                    context = {"profile_user_id": user_obj.id, "logged_in_user": request.user.id}
+                    serializer = GetUserProfileSerializer(user_obj, context=context)
+                    return ({"data": serializer.data, "code": status.HTTP_200_OK, "message": "User Profile fetched Successfully"})
+                else:
+                    context = {"profile_user_id": user_obj.id,"logged_in_user": request.user.id}
+                    serializer = ProfileByUsernameSerializer(user_obj, context=context)
+                    return ({"data": serializer.data, "code": status.HTTP_200_OK, "message": "Follow user to for more details"})
         except User.DoesNotExist:
             return ({"data": None, "code": status.HTTP_400_BAD_REQUEST, "message": RECORD_NOT_FOUND})
-        context = {"profile_user_id": user_obj.id,
-                   "logged_in_user": request.user.id}
-        serializer = ProfileByUsernameSerializer(user_obj, context=context)
-        return ({"data": serializer.data, "code": status.HTTP_200_OK, "message": "Follow user to see all the posts"})
 
     def logout(self, request, format=None):
 
@@ -854,9 +871,7 @@ class UserService(UserBaseService):
     def send_verification_email_by_token(self, request, pk, format=None):
         try:
             user_obj = User.objects.get(id = pk)
-            print(user_obj)
             date = datetime.now()
-            print(date)
             token = account_activation_token.make_token(user_obj.id)
             save_token = User.objects.filter(id = pk).update(email_token = token, email_token_valid = date)
             first_name = user_obj.email
@@ -920,3 +935,33 @@ class UserService(UserBaseService):
             return ({"data": [user_referral_id], "code": status.HTTP_200_OK, "message": "OK"})
         else:
             return {"data": None, "code": status.HTTP_400_BAD_REQUEST, "message": "User not found"}
+    
+     # list of unread notifications 
+    def get_unread_notification_list_by_user(self, request, format=None):
+        """
+        Return all the Unseen Messages.
+        """
+        id1 = list(UserSubscription.objects.filter(user = request.user.id).values_list('id'))
+        id2 = list(UserFollowers.objects.filter(user=request.user.id).values_list('id'))
+        id3 = list(Messages.objects.filter(reciever=request.user.id, is_seen=False)) 
+        notification_obj = Notifications.objects.filter(subscribe__in = id1, is_active=True) | Notifications.objects.filter(followrequest__in = id2, is_active=True) | Notifications.objects.filter(message__in = id3, is_active=True) 
+        notification_obj = notification_obj.order_by('-created_at')
+        context = {"user_id":request.user.id}
+        serializer = GetNotificationSerializer(notification_obj, many=True, context = context)
+        return ({"data": serializer.data, "code": status.HTTP_200_OK, "message": MESSAGE})
+
+    def read_notification(self, request, pk, format=None):
+        '''
+        Read the notification
+        '''
+        Notifications.objects.filter(id=pk).update(is_active=False)
+        id1 = list(UserSubscription.objects.filter(user = request.user.id).values_list('id'))
+        id2 = list(UserFollowers.objects.filter(user=request.user.id).values_list('id'))
+        id3 = list(Messages.objects.filter(reciever=request.user.id, is_seen=False)) 
+        notification_obj = Notifications.objects.filter(subscribe__in = id1, is_active=True) | Notifications.objects.filter(followrequest__in = id2, is_active=True) | Notifications.objects.filter(message__in = id3, is_active=True) 
+        notification_obj = notification_obj.order_by('-created_at')
+        context = {"user_id":request.user.id}
+        serializer = GetNotificationSerializer(notification_obj, many=True, context = context)
+        return ({"data": serializer.data, "code": status.HTTP_200_OK, "message": MESSAGE})
+        
+

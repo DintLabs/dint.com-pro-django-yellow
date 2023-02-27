@@ -56,6 +56,15 @@ urlpatterns = [
     path('user/get-stories-by-user/',UserStoriesByUserView.as_view(), name="get-stories-by-user"),
     path('user/create-stories/',UserStoriesView.as_view(), name="create-stories"),
     path('user/delete-stories/<int:pk>/', UserStoriesView.as_view(), name="delete-stories"),
+    path('user/like_stories/<int:pk>/', UserLikeStories.as_view(), name="like_stories"),
+    path('user/unlike_stories/<int:pk>/', UserUnlikeStories.as_view(), name="unlike_stories"),
+    path('user/get_story_likes/<int:pk>/', UserLikeStories.as_view(), name = "get_story_likes"),
+    path('user/create_story_archive/', UserStoryArchive.as_view(), name="create_story_archive"),
+    path('user/get_story_archive/', UserStoryArchive.as_view(), name="get_story_archive"),
+    path('user/delete_story_archive/<int:pk>/', UserStoryArchive.as_view(), name="remove_story_archive"),
+    path('user/create_stories_highlights/', UserStoriesHighlights.as_view(), name="create_story_highlights" ),
+    path('user/get_story_hightlihts/', UserStoriesHighlights.as_view(), name="get_story_highlights"),
+    path('user/delete_story_highlight/<int:pk>/', UserStoriesHighlights.as_view(), name="delete_story_highlight"),
 
     # USER SEND DINT
     path('user/withdraw-dint/', WithdrawDint.as_view(), name="withdraw-dint"),
@@ -204,6 +213,10 @@ urlpatterns = [
     path('user/update_bank_account/<int:id>/', UserBankAccounts.as_view(), name="update_bank_accounts"),
     path('user/request_payouts/', UserPayouts.as_view(), name="add_payouts"),
     path('user/get_requested_payouts/', UserPayouts.as_view(), name="get_requested_payouts"),
-    path('user/get_payouts_by_token/', UserPayoutsByToken.as_view(), name="get_payouts_by_token")
+    path('user/get_payouts_by_token/', UserPayoutsByToken.as_view(), name="get_payouts_by_token"),
+
+    # notifications
+    path('user/get-unread-notifications/', GetUnreadNotifications.as_view(), name="get_unread_notification_list_by_user"),
+    path('user/read-notification/<int:pk>/', ReadNotification.as_view(), name="read_notification"),
 ]
 
