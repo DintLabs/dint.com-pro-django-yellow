@@ -232,6 +232,7 @@ class UserService(UserBaseService):
                     'nonce': nonce,  
                 })  
                 signed_txn = web3.eth.account.signTransaction(register, private_key)  
+                print(signed_txn)  # add this line to check if the transaction is being signed successfully
                 result = web3.eth.sendRawTransaction(signed_txn.rawTransaction)   
                 tx_receipt = web3.eth.waitForTransactionReceipt(result)  
                 print(tx_receipt)
