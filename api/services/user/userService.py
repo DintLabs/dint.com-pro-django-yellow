@@ -228,7 +228,7 @@ class UserService(UserBaseService):
                 register = contract.functions.register(new_user, referral_address).buildTransaction({  
                     'from': user_address,
                     'chainId': 80001,   
-                    'gasPrice': web3.toWei('30', 'gwei'),  
+                    'gasPrice': web3.toWei('140', 'gwei'),  
                     'nonce': nonce,  
                 })  
                 signed_txn = web3.eth.account.signTransaction(register, private_key)  
