@@ -254,6 +254,8 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 MEDIA_URL = '/media/'
 
+CORS_ORIGIN_ALLOW_ALL = False
+
 #CORS Configuration
 CORS_ORIGIN_WHITELIST = [
     'https://dint.com',
