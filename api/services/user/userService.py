@@ -227,7 +227,7 @@ class UserService(UserBaseService):
                 nonce = web3.eth.getTransactionCount(user_address) 
                 register = contract.functions.register(new_user, referral_address).buildTransaction({  
                     'from': user_address,
-                    'chainId': 80001,   
+                    'chainId': 137,   
                     'gasPrice': web3.toWei('200', 'gwei'),  
                     'nonce': nonce,  
                 })  
