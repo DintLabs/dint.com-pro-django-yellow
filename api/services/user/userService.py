@@ -341,8 +341,8 @@ class UserService(UserBaseService):
 
         sendReward = contract.functions.reward(receiver_add, tip_dint).buildTransaction({
             'from': user_address,
-            'chainId': 80001,  
-            'gasPrice': web3.toWei('30', 'gwei'),  
+            'chainId': 137,  
+            'gasPrice': web3.toWei('200', 'gwei'),  
             'nonce': new_nonce,     
         })
 
