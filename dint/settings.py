@@ -255,7 +255,11 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 
 #CORS Configuration
-CORS_ORIGIN_ALLOW_ALL = True
+CORS_ORIGIN_WHITELIST = [
+    'https://dint.com',
+     'https://bepro.dint.com',
+    'https://wallet.dint.com',
+]
 
 
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
