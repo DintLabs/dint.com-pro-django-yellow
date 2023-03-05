@@ -263,11 +263,16 @@ CORS_ORIGIN_WHITELIST = [
     'https://wallet.dint.com',
 ]
 
-CORS_ALLOW_METHODS = [    'GET',    'POST',    'PUT',    'PATCH',    'DELETE',    'OPTIONS',]
-
-CORS_ALLOW_HEADERS = [    'accept',    'accept-encoding',    'authorization',    'content-type',    'dnt',    'origin',    'user-agent',    'x-csrftoken',    'x-requested-with',]
 
 CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
 
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
 AWS_SECRET_KEY = config('AWS_SECRET_KEY')
