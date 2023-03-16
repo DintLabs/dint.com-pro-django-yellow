@@ -245,8 +245,8 @@ class UserService(UserBaseService):
                     return ({"data": user_details, "code": status.HTTP_201_CREATED, "message": "User Created Successfully"})
             except Exception as e:
                 print(e)
-                return ({"data": serializer.errors, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong. Please try again"})
-        return ({"data": serializer.errors, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong. Please try again"})
+                return ({"data": serializer.errors, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Signup went wrong. Please try again"})
+        return ({"data": serializer.errors, "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Singup went wrong. Please try again"})
 
     def withdraw_dint_token(self, request, format=None):
         url = settings.WITHDRAW_DINT_TOKEN_URL
@@ -264,13 +264,13 @@ class UserService(UserBaseService):
             Hash = data['hash']
             node_url = settings.NODE_URL
             web3 = Web3(Web3.HTTPProvider(node_url))
-            dintReciept = web3.eth.wait_for_transaction_receipt(Hash)  
-            if (dintReciept.status == 1):
+            dintReceipt = web3.eth.wait_for_transaction_receipt(Hash)  
+            if (dintReceipt.status == 1):
                 return ({"data": data, "code": status.HTTP_201_CREATED, "message": "Token sent successfully"})
             else:
                 return ({"data": data, "code": status.HTTP_400_BAD_REQUEST, "message": "Transaction Failed"})
         except:
-            return ({"data": [], "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong."})
+            return ({"data": [], "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Withdrawal went wrong."})
 
     def send_dint_token(self, request, format=None):
         url = settings.SEND_DINT_TOKEN_URL
@@ -278,7 +278,7 @@ class UserService(UserBaseService):
         payload = json.dumps({
         "sender_id" : request.data['sender_id'],
         "reciever_id" : request.data['reciever_id'],
-        "amount" : request.data['amount']
+        "amount" : request.data['amount'],
         })
         headers = {
         'Content-Type': 'application/json',
@@ -290,13 +290,13 @@ class UserService(UserBaseService):
             Hash = data['Hash']
             node_url = settings.NODE_URL
             web3 = Web3(Web3.HTTPProvider(node_url))
-            dintReciept = web3.eth.wait_for_transaction_receipt(Hash)  
-            if (dintReciept.status == 1):
+            dintReceipt = web3.eth.wait_for_transaction_receipt(Hash)  
+            if (dintReceipt.status == 1):
                 return ({"data": data, "code": status.HTTP_201_CREATED, "message": "Token sent successfully"})
             else:
                 return ({"data": data, "code": status.HTTP_400_BAD_REQUEST, "message": "Transaction Failed"})
         except:
-             return ({"data": [], "code": status.HTTP_400_BAD_REQUEST, "message": "Oops! Something went wrong."})
+             return ({"data": [], "code": status.HTTP_400_BAD_REQUEST, "message": "Oops Sending! Something went wrong."})
         
     def send_reward_by_token(self, request, format=None):
         receiver = User.objects.get(id = request.user.id)
