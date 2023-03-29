@@ -1,4 +1,6 @@
 from __future__ import print_function
+from http.client import HTTPResponse
+from smtplib import SMTPResponseException
 from api.utils.messages.postMessages import MESSAGE, POST_FETCHED
 from cryptography.fernet import Fernet
 from dint import settings
@@ -62,6 +64,8 @@ from api.utils.token import account_activation_token
 import redis
 from dint.settings import *
 from web3.exceptions import TransactionNotFound
+from django.http import JsonResponse
+
 class UserService(UserBaseService):
     """
     Allow any user (authenticated or not) to access this url 
@@ -265,8 +269,12 @@ class UserService(UserBaseService):
             node_url = settings.NODE_URL
             web3 = Web3(Web3.HTTPProvider(node_url))
             dintReceipt = web3.eth.wait_for_transaction_receipt(Hash, timeout=120)
-            if (dintReceipt):
-                return ({"data": data, "code": status.HTTP_201_CREATED, "message": "Token sent successfully"})
+            if dintReceipt:
+                return {
+                        "data": data, 
+                         "code": status.HTTP_201_CREATED, 
+                         "message": "Token sent successfully"
+                         }
             else:
                 return ({"data": data, "code": status.HTTP_400_BAD_REQUEST, "message": "Transaction Failed"})
         except Exception as e:
@@ -274,8 +282,7 @@ class UserService(UserBaseService):
 
     def send_dint_token(self, request, format=None):
         url = settings.SEND_DINT_TOKEN_URL
-        requested_data = request.data
-        payload = json.dumps({
+        payload = json.dumps ({
         "sender_id" : request.data['sender_id'],
         "reciever_id" : request.data['reciever_id'],
         "amount" : request.data['amount'],
@@ -290,14 +297,25 @@ class UserService(UserBaseService):
             Hash = data['Hash']
             node_url = settings.NODE_URL
             web3 = Web3(Web3.HTTPProvider(node_url))
-            dintReceipt = web3.eth.wait_for_transaction_receipt(Hash, timeout=120)
-            if (dintReceipt):
-                return ({"data": data, "code": status.HTTP_201_CREATED, "message": "Token sent successfully"})
-                
+            dintReceipt = web3.eth.wait_for_transaction_receipt(Hash, timeout=300)
+            if (dintReceipt == 1):
+                return {
+                    "data": data, 
+                    "code": status.HTTP_201_CREATED, 
+                    "message": "Token sent successfully"
+                    }
             else:
-                return ({"data": data, "code": status.HTTP_400_BAD_REQUEST, "message": "Transaction Failed"})
-        except:
-             return ({"data": [], "code": status.HTTP_400_BAD_REQUEST, "message": "Oops Sending! Something went wrong."})
+                return {
+                    "data": data, 
+                    "code": status.HTTP_400_BAD_REQUEST, 
+                    "message": "Transaction Failed"}
+        except: 
+            return {
+                    "data": [],
+                     "code": status.HTTP_400_BAD_REQUEST,
+                     "message": "Oops Sending! Something went wrong."
+                     }
+
         
         
     def send_reward_by_token(self, request, format=None):
