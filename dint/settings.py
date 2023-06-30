@@ -259,8 +259,12 @@ CORS_ORIGIN_ALLOW_ALL = False
 #CORS Configuration
 CORS_ORIGIN_WHITELIST = [
     'https://dint.com',
+    'https://fedev.dint.com',
      'https://bepro.dint.com',
     'https://wallet.dint.com',
+     'https://bedev.dint.com',
+    'https://node.dint.com',
+   'http://localhost:3000',
 ]
 
 
@@ -276,7 +280,7 @@ CORS_ALLOW_METHODS = [
 
 AWS_ACCESS_KEY_ID = config('AWS_ACCESS_KEY_ID')
 AWS_SECRET_KEY = config('AWS_SECRET_KEY')
-AWS_BUCKET_NAME = config('AWS_BUCKET_NAME')
+AWS1_BUCKET_NAME = config('AWS1_BUCKET_NAME')
 STRIPE_API_KEY = config('STRIPE_API_KEY')
 ENCRYPTION_KEY = config('ENCRYPTION_KEY')
 
